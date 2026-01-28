@@ -1,0 +1,20 @@
+Package: TWL
+Title: Thermal Work Limit Calculation
+Version: 0.1.0
+Authors@R:
+    person("RJS", role = c("aut", "cre"), email = "author@example.com")
+Description: Calculates the Thermal Work Limit (TWL), the maximum sustainable
+    metabolic rate (W/m²) for workers in thermally stressful environments.
+    Based on the methodology of Brake & Bates (2002) <doi:10.1080/104732202317070947>.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    cli,
+    dplyr,
+    jsonlite,
+    purrr
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

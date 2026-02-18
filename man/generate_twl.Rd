@@ -13,8 +13,8 @@ generate_twl(
   RH = NULL,
   direct_solar = NULL,
   diffuse_solar = NULL,
-  cloud_cover = NULL,
   pressure = NULL,
+  wet_bulb = NULL,
   albedo = 0.12,
   Icl = 0.6,
   icl = 0.45,
@@ -45,10 +45,11 @@ fetch from Open-Meteo.}
 \item{diffuse_solar}{Diffuse sky solar radiation in W/m^2, or \code{NULL} to
 fetch from Open-Meteo.}
 
-\item{cloud_cover}{Cloud cover fraction (0--1), or \code{NULL} to fetch from
-Open-Meteo.}
-
 \item{pressure}{Barometric pressure in hPa (or kPa if \code{convert_pressure = FALSE}), or \code{NULL} to fetch from Open-Meteo.}
+
+\item{wet_bulb}{Natural (unventilated) wet bulb temperature in degrees
+Celsius, or \code{NULL} (the default) to estimate it from \code{temp}, \code{RH},
+\code{pressure}, \code{wind_speed}, and \code{globe_temp}.}
 
 \item{albedo}{Ground albedo (0--1). Default 0.12 for asphalt.}
 
@@ -78,11 +79,16 @@ thermal environment. Based on the Brake & Bates (2002) methodology.
 }
 \details{
 Weather parameters (\code{temp}, \code{wind_speed}, \code{RH}, \code{direct_solar},
-\code{diffuse_solar}, \code{cloud_cover}, \code{pressure}) that are not supplied are
-automatically retrieved from the
-\href{https://open-meteo.com/}{Open-Meteo API} using the provided \code{datetime},
-\code{latitude} and \code{longitude}. An internet connection is required for
-auto-fetching.
+\code{diffuse_solar}, \code{pressure}) that are not supplied are automatically
+retrieved from the \href{https://open-meteo.com/}{Open-Meteo API} using the
+provided \code{datetime}, \code{latitude} and \code{longitude}. An internet connection
+is required for auto-fetching.
+
+Open-Meteo returns wind speed at 10 m height (\code{wind_speed_10m}). This is
+corrected to approximately 1 m (body level) using a logarithmic wind
+profile with roughness length z0 = 0.01 m (open terrain), giving a
+correction factor of \code{ln(1/z0) / ln(10/z0)} ≈ 0.667. Supply \code{wind_speed}
+directly (already at body level) to skip this correction.
 
 TWL categories (from Brake & Bates 2002):
 \itemize{

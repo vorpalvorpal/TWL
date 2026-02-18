@@ -1,16 +1,24 @@
 #' Calculate solar position (zenith and azimuth angles)
 #'
 #' Calculates solar zenith and azimuth angles from date, time and location
-#' using astronomical equations based on the Julian Day.
+#' using astronomical equations based on the Julian Day (low-precision
+#' algorithm accurate to within ~0.01° for dates within a few centuries of
+#' J2000.0).
 #'
-#' @param datetime POSIXct datetime vector.
+#' Currently only `zenith` is consumed by [calculate_globe_temp()]; `azimuth`
+#' is returned for future use (e.g. anisotropic reflected radiation).
+#'
+#' @param datetime POSIXct datetime vector. Sub-daily precision is used; times
+#'   should be in UTC (or have a UTC offset applied) for correct results.
 #' @param latitude Latitude in decimal degrees (-90 to 90).
 #' @param longitude Longitude in decimal degrees (-180 to 180).
 #'
-#' @return A list with components:
+#' @return A named list with two numeric vectors:
 #' \describe{
-#'   \item{zenith}{Solar zenith angle in degrees.}
-#'   \item{azimuth}{Solar azimuth angle in degrees.}
+#'   \item{zenith}{Solar zenith angle in degrees (0 = overhead, 90 = horizon).}
+#'   \item{azimuth}{Solar azimuth angle in degrees clockwise from north
+#'     (0/360 = north, 90 = east, 180 = south, 270 = west). Currently unused
+#'     by callers but available for future directional radiation models.}
 #' }
 #' @keywords internal
 calculate_solar_position <- function(datetime, latitude, longitude) {
@@ -43,12 +51,15 @@ calculate_solar_position <- function(datetime, latitude, longitude) {
   delta <- asin(sin(epsilon_rad) * sin(lambda_rad)) * 180 / pi
   delta_rad <- delta * pi / 180
 
-  # Hour angle
-  hour <- as.numeric(format(datetime, "%H")) +
-    as.numeric(format(datetime, "%M")) / 60 +
-    as.numeric(format(datetime, "%S")) / 3600
+  # Greenwich Mean Sidereal Time (degrees) — already encodes the full UT
+  # from n (Julian days since J2000.0, including fractional day).
+  # Local Sidereal Time (LST) = GMST + east longitude.
+  # Note: adding hour * 15 here would double-count the time-of-day, since n
+  # already carries the sub-day fraction via the Julian Day.
   GMST <- (280.460 + 360.9856474 * n) %% 360
-  LST <- (GMST + longitude + hour * 15) %% 360
+  LST  <- (GMST + longitude) %% 360
+
+  # Local Hour Angle: angle of the sun west of the observer's meridian
   H <- (LST - RA) %% 360
   H <- ifelse(H > 180, H - 360, H)
   H_rad <- H * pi / 180

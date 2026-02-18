@@ -11,20 +11,17 @@ solve_twl_single(
   direct_solar,
   diffuse_solar,
   pressure,
-  solar_radiation,
   pa,
   temp_dewpoint,
   wet_bulb,
   globe_temp,
   trad,
-  hc,
   max_core_temp,
   max_sweat_rate,
   Icl,
   icl,
   LR,
   lambda,
-  fr,
   index = NULL
 )
 }
@@ -35,25 +32,25 @@ solve_twl_single(
 
 \item{RH}{Relative humidity in percent.}
 
-\item{direct_solar}{Direct solar radiation in W/m^2.}
+\item{direct_solar}{Direct solar radiation in W/m^2 (not used in heat
+balance; retained for interface compatibility).}
 
-\item{diffuse_solar}{Diffuse solar radiation in W/m^2.}
+\item{diffuse_solar}{Diffuse solar radiation in W/m^2 (not used in heat
+balance; retained for interface compatibility).}
 
 \item{pressure}{Atmospheric pressure in kPa.}
-
-\item{solar_radiation}{Total solar radiation in W/m^2.}
 
 \item{pa}{Actual vapour pressure in kPa.}
 
 \item{temp_dewpoint}{Dew point temperature in degrees Celsius.}
 
-\item{wet_bulb}{Natural wet bulb temperature in degrees Celsius.}
+\item{wet_bulb}{Natural wet bulb temperature in degrees Celsius (not used
+in heat balance; retained for interface compatibility).}
 
-\item{globe_temp}{Globe temperature in degrees Celsius.}
+\item{globe_temp}{Globe temperature in degrees Celsius (not used in heat
+balance; retained for interface compatibility).}
 
 \item{trad}{Mean radiant temperature in degrees Celsius.}
-
-\item{hc}{Convective heat transfer coefficient in W/(m^2.K).}
 
 \item{max_core_temp}{Maximum core temperature in degrees Celsius.}
 
@@ -65,9 +62,10 @@ solve_twl_single(
 
 \item{LR}{Lewis relation in K/kPa.}
 
-\item{lambda}{Latent heat of evaporation in kJ/kg.}
-
-\item{fr}{Posture factor.}
+\item{lambda}{Latent heat of evaporation of sweat at skin temperature,
+in kJ/kg. Brake & Bates (2002) use 2430 kJ/kg (ASHRAE Eq. 14 at 30°C).
+Note: \code{natural_wet_bulb.R} uses 2455 kJ/kg (value near 20°C) for the
+wet-bulb psychrometric equation — a different physical context.}
 
 \item{index}{Observation index for warnings (optional).}
 }
@@ -76,7 +74,13 @@ TWL in W/m^2.
 }
 \description{
 Iteratively solves the heat balance equations to find the maximum
-sustainable metabolic rate using a three-zone evaporation model and
-Newton's method.
+sustainable metabolic rate using the three-zone evaporation model
+from Brake & Bates (2002), Appendix 1.
+}
+\details{
+The algorithm iterates on mean skin temperature (t_skin) to find the
+unique value at which heat flow from core to skin (H) equals heat
+loss from skin to environment (C + R + E).  At that steady-state,
+the metabolic rate M = H + B (respiratory losses) equals the TWL.
 }
 \keyword{internal}

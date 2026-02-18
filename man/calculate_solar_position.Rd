@@ -7,21 +7,30 @@
 calculate_solar_position(datetime, latitude, longitude)
 }
 \arguments{
-\item{datetime}{POSIXct datetime vector.}
+\item{datetime}{POSIXct datetime vector. Sub-daily precision is used; times
+should be in UTC (or have a UTC offset applied) for correct results.}
 
 \item{latitude}{Latitude in decimal degrees (-90 to 90).}
 
 \item{longitude}{Longitude in decimal degrees (-180 to 180).}
 }
 \value{
-A list with components:
+A named list with two numeric vectors:
 \describe{
-\item{zenith}{Solar zenith angle in degrees.}
-\item{azimuth}{Solar azimuth angle in degrees.}
+\item{zenith}{Solar zenith angle in degrees (0 = overhead, 90 = horizon).}
+\item{azimuth}{Solar azimuth angle in degrees clockwise from north
+(0/360 = north, 90 = east, 180 = south, 270 = west). Currently unused
+by callers but available for future directional radiation models.}
 }
 }
 \description{
 Calculates solar zenith and azimuth angles from date, time and location
-using astronomical equations based on the Julian Day.
+using astronomical equations based on the Julian Day (low-precision
+algorithm accurate to within ~0.01° for dates within a few centuries of
+J2000.0).
+}
+\details{
+Currently only \code{zenith} is consumed by \code{\link[=calculate_globe_temp]{calculate_globe_temp()}}; \code{azimuth}
+is returned for future use (e.g. anisotropic reflected radiation).
 }
 \keyword{internal}

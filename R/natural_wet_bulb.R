@@ -15,15 +15,20 @@
 solve_natural_wb_single <- function(temp, RH, pressure, wind_speed, globe_temp,
                                     index = NULL) {
 
-  # Constants
-  LATENT_HEAT_EVAP <- 2455000
-  VIEW_EMISSIVITY_FACTOR <- 0.76
-  STEFAN_BOLTZMANN <- 5.67e-8
-  ABS_ZERO <- 273.15
-  BULB_DIA <- 0.004
-  AIR_THERMAL_CONDUCTIVITY <- 0.028
+  # Physical constants (shared via TWL_CONSTANTS)
+  VIEW_EMISSIVITY_FACTOR   <- TWL_CONSTANTS$VIEW_EMISSIVITY_FACTOR
+  STEFAN_BOLTZMANN         <- TWL_CONSTANTS$STEFAN_BOLTZMANN
+  ABS_ZERO                 <- TWL_CONSTANTS$ABS_ZERO
+  BULB_DIA                 <- TWL_CONSTANTS$BULB_DIA
+  AIR_THERMAL_CONDUCTIVITY <- TWL_CONSTANTS$AIR_THERMAL_CONDUCTIVITY
+
+  # Latent heat of evaporation in J/kg at ~20 °C (psychrometric wet bulb
+  # context).  Intentionally different from TWL_CONSTANTS$LATENT_HEAT_TWL_KJ
+  # (2430 kJ/kg at 30 °C skin temperature) — see ?TWL_CONSTANTS.
+  LATENT_HEAT_EVAP <- 2455000   # J/kg at ~20 °C
+
   ACCURACY_REQUIRED <- 0.02
-  MAX_ITERATIONS <- 100
+  MAX_ITERATIONS    <- 100
 
   # Handle NA inputs
   if (is.na(temp) || is.na(RH) || is.na(pressure) ||
@@ -76,7 +81,8 @@ solve_natural_wb_single <- function(temp, RH, pressure, wind_speed, globe_temp,
     ea <- (RH / 100) * es_air
 
     # Evaporative heat loss
-    E <- (0.622 * LATENT_HEAT_EVAP * hc / (pressure_pa * 1.005)) * (es_wb * 1000 - ea * 1000)
+    # cp = 1005 J/(kg.K); pressure_pa in Pa; es/ea in kPa converted to Pa by *1000
+    E <- (0.622 * LATENT_HEAT_EVAP * hc / (pressure_pa * 1005)) * (es_wb * 1000 - ea * 1000)
 
     # Convective heat gain
     C <- hc * (temp - WBn)
@@ -114,7 +120,7 @@ solve_natural_wb_single <- function(temp, RH, pressure, wind_speed, globe_temp,
     # Derivative for Newton's method
     des_dT <- es_wb * (18.678 - 2 * WBn / 234.5) / (257.14 + WBn) -
       es_wb * (18.678 - WBn / 234.5) * WBn / (257.14 + WBn)^2
-    dE_dT <- (0.622 * LATENT_HEAT_EVAP * hc / (pressure_pa * 1.005)) * des_dT * 1000
+    dE_dT <- (0.622 * LATENT_HEAT_EVAP * hc / (pressure_pa * 1005)) * des_dT * 1000
     dC_dT <- -hc
     dR_dT <- -4 * VIEW_EMISSIVITY_FACTOR * STEFAN_BOLTZMANN * WBn_K^3
 

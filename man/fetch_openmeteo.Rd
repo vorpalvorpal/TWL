@@ -7,7 +7,7 @@
 fetch_openmeteo(datetime, latitude, longitude, fields, verbose = FALSE)
 }
 \arguments{
-\item{datetime}{POSIXct datetime vector.}
+\item{datetime}{POSIXct datetime vector (UTC).}
 
 \item{latitude}{Latitude in decimal degrees.}
 
@@ -26,5 +26,10 @@ to the input \code{datetime} values. Values that cannot be matched are \code{NA}
 Queries the Open-Meteo forecast or historical archive API to retrieve
 hourly weather observations for the given location and times. Only the
 variables listed in \code{fields} are requested.
+}
+\details{
+Input \code{datetime} values must be in UTC (or a UTC-equivalent timezone).
+Sub-hourly timestamps are truncated to the hour before matching against
+API data.
 }
 \keyword{internal}

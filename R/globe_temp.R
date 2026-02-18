@@ -17,11 +17,11 @@
 solve_globe_temp <- function(temp, wind_speed, direct_solar, diffuse_solar,
                              zenith, albedo = 0.12, index = NULL) {
 
-  # Constants
-  STEFAN_BOLTZMANN <- 5.67e-8
-  ABS_ZERO <- 273.15
-  GLOBE_DIAMETER <- 0.15
-  GLOBE_EMISSIVITY <- 0.95
+  # Physical constants (shared via TWL_CONSTANTS)
+  STEFAN_BOLTZMANN <- TWL_CONSTANTS$STEFAN_BOLTZMANN
+  ABS_ZERO         <- TWL_CONSTANTS$ABS_ZERO
+  GLOBE_DIAMETER   <- TWL_CONSTANTS$GLOBE_DIAMETER
+  GLOBE_EMISSIVITY <- TWL_CONSTANTS$GLOBE_EMISSIVITY
 
   # Ensure minimum wind speed
   wind_speed <- max(wind_speed, 0.2)

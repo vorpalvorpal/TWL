@@ -11,16 +11,25 @@ An object of class \code{list} of length 8.
 TWL_CONSTANTS
 }
 \description{
-A list of constants used throughout the TWL calculations:
+A list of shared physical constants used by the globe temperature and
+natural wet bulb solvers.  Each function accesses these via
+\verb{TWL_CONSTANTS$<NAME>} rather than duplicating the numeric literal.
+}
+\details{
 \describe{
-\item{STEFAN_BOLTZMANN}{Stefan-Boltzmann constant, 5.67e-8 W/(m^2.K^4)}
-\item{ABS_ZERO}{Absolute zero offset, 273.15 K}
-\item{LATENT_HEAT_EVAP}{Latent heat of evaporation at skin temp, 2430 kJ/kg}
-\item{VIEW_EMISSIVITY_FACTOR}{Combined view (0.8) and emissivity (0.95) factor, 0.76}
-\item{BULB_DIA}{Standard wick diameter, 0.004 m}
-\item{AIR_THERMAL_CONDUCTIVITY}{Thermal conductivity of air, 0.028 W/(m.K)}
-\item{GLOBE_DIAMETER}{Black globe diameter, 0.15 m}
-\item{GLOBE_EMISSIVITY}{Globe emissivity, 0.95}
+\item{STEFAN_BOLTZMANN}{Stefan-Boltzmann constant, 5.67e-8 W/(m^2·K^4).}
+\item{ABS_ZERO}{Celsius-to-Kelvin offset, 273.15 K.}
+\item{GLOBE_DIAMETER}{Standard black-globe diameter, 0.15 m (150 mm).}
+\item{GLOBE_EMISSIVITY}{Black-globe emissivity, 0.95.}
+\item{VIEW_EMISSIVITY_FACTOR}{Combined view factor (0.8) × emissivity (0.95)
+for the natural wet bulb cylinder, 0.76.}
+\item{BULB_DIA}{Standard wick/bulb diameter for natural wet bulb, 0.004 m.}
+\item{AIR_THERMAL_CONDUCTIVITY}{Thermal conductivity of air, 0.028 W/(m·K).}
+\item{LATENT_HEAT_TWL_KJ}{Latent heat of evaporation of sweat \strong{at skin
+temperature} (~30 °C), 2430 kJ/kg. Used in the TWL heat balance
+(Brake & Bates 2002, ASHRAE Eq. 14 at 30 °C). Note: the natural wet
+bulb solver uses 2455 kJ/kg (value near 20 °C) in a different
+psychrometric context — see \code{\link[=solve_natural_wb_single]{solve_natural_wb_single()}}.}
 }
 }
 \keyword{internal}

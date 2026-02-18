@@ -5,11 +5,16 @@
 #' thermal environment. Based on the Brake & Bates (2002) methodology.
 #'
 #' Weather parameters (`temp`, `wind_speed`, `RH`, `direct_solar`,
-#' `diffuse_solar`, `cloud_cover`, `pressure`) that are not supplied are
-#' automatically retrieved from the
-#' [Open-Meteo API](https://open-meteo.com/) using the provided `datetime`,
-#' `latitude` and `longitude`. An internet connection is required for
-#' auto-fetching.
+#' `diffuse_solar`, `pressure`) that are not supplied are automatically
+#' retrieved from the [Open-Meteo API](https://open-meteo.com/) using the
+#' provided `datetime`, `latitude` and `longitude`. An internet connection
+#' is required for auto-fetching.
+#'
+#' Open-Meteo returns wind speed at 10 m height (`wind_speed_10m`). This is
+#' corrected to approximately 1 m (body level) using a logarithmic wind
+#' profile with roughness length z0 = 0.01 m (open terrain), giving a
+#' correction factor of `ln(1/z0) / ln(10/z0)` ≈ 0.667. Supply `wind_speed`
+#' directly (already at body level) to skip this correction.
 #'
 #' @param datetime POSIXct datetime vector (required).
 #' @param latitude Latitude in decimal degrees (required).
@@ -23,10 +28,11 @@
 #'   fetch from Open-Meteo.
 #' @param diffuse_solar Diffuse sky solar radiation in W/m^2, or `NULL` to
 #'   fetch from Open-Meteo.
-#' @param cloud_cover Cloud cover fraction (0--1), or `NULL` to fetch from
-#'   Open-Meteo.
 #' @param pressure Barometric pressure in hPa (or kPa if `convert_pressure =
 #'   FALSE`), or `NULL` to fetch from Open-Meteo.
+#' @param wet_bulb Natural (unventilated) wet bulb temperature in degrees
+#'   Celsius, or `NULL` (the default) to estimate it from `temp`, `RH`,
+#'   `pressure`, `wind_speed`, and `globe_temp`.
 #' @param albedo Ground albedo (0--1). Default 0.12 for asphalt.
 #' @param Icl Intrinsic clothing thermal resistance in clo. Default 0.6.
 #' @param icl Clothing vapour permeation efficiency (0--1). Default 0.45.
@@ -64,8 +70,8 @@ generate_twl <- function(datetime,
                          RH = NULL,
                          direct_solar = NULL,
                          diffuse_solar = NULL,
-                         cloud_cover = NULL,
                          pressure = NULL,
+                         wet_bulb = NULL,
                          albedo = 0.12,
                          Icl = 0.6,
                          icl = 0.45,
@@ -75,23 +81,26 @@ generate_twl <- function(datetime,
                          verbose = TRUE) {
 
   # --- Determine which weather fields need fetching ---
+  # Note: wind_speed_10m from Open-Meteo is at 10 m height; it is corrected
+  # to body level (~1 m) below using a log-profile wind correction.
   field_map <- c(
     temp          = "temperature_2m",
     wind_speed    = "wind_speed_10m",
     RH            = "relative_humidity_2m",
     direct_solar  = "direct_radiation",
     diffuse_solar = "diffuse_radiation",
-    cloud_cover   = "cloud_cover",
     pressure      = "surface_pressure"
   )
 
   missing <- vapply(
-    list(temp, wind_speed, RH, direct_solar, diffuse_solar,
-         cloud_cover, pressure),
+    list(temp, wind_speed, RH, direct_solar, diffuse_solar, pressure),
     is.null, logical(1)
   )
   names(missing) <- names(field_map)
   fields_needed <- field_map[missing]
+
+  # Track whether wind_speed came from the API (needs height correction)
+  wind_from_api <- is.null(wind_speed)
 
   if (length(fields_needed) > 0L) {
     if (verbose) {
@@ -107,7 +116,6 @@ generate_twl <- function(datetime,
     if (is.null(RH))            RH            <- api_data[["relative_humidity_2m"]]
     if (is.null(direct_solar))  direct_solar  <- api_data[["direct_radiation"]]
     if (is.null(diffuse_solar)) diffuse_solar <- api_data[["diffuse_radiation"]]
-    if (is.null(cloud_cover))   cloud_cover   <- api_data[["cloud_cover"]]
     if (is.null(pressure))      pressure      <- api_data[["surface_pressure"]]
   }
 
@@ -119,13 +127,26 @@ generate_twl <- function(datetime,
   }
 
   # Constants
-  LR <- 16.5
-  lambda <- 2430
-  fr <- 0.72
+  LR     <- 16.5
+  lambda <- TWL_CONSTANTS$LATENT_HEAT_TWL_KJ   # 2430 kJ/kg at skin temp ~30 °C [ASHRAE Eq. 14]
 
   # Unit conversions
   if (convert_pressure) {
     pressure <- pressure / 10
+  }
+
+  # Apply log-profile wind height correction for API-sourced wind speed.
+  # Open-Meteo supplies wind_speed_10m (at 10 m); Brake & Bates use wind at
+  # body level (~1 m). Log-profile with roughness length z0 = 0.01 m gives:
+  #   v_1m = v_10m * ln(1/z0) / ln(10/z0)  =  v_10m * 0.667
+  if (wind_from_api) {
+    WIND_HEIGHT_FACTOR <- log(1 / 0.01) / log(10 / 0.01)  # ≈ 0.667
+    wind_speed <- wind_speed * WIND_HEIGHT_FACTOR
+    if (verbose) {
+      cli_alert_info(
+        "Applied 10 m -> 1 m wind height correction (factor {round(WIND_HEIGHT_FACTOR, 3)})"
+      )
+    }
   }
 
   # Constrain wind speed to valid range (Brake & Bates recommend 0.2-4.0 m/s)
@@ -138,17 +159,9 @@ generate_twl <- function(datetime,
     )
   }
 
-  # Convert cloud cover to fraction if needed (assume % if max > 1)
-  if (max(cloud_cover, na.rm = TRUE) > 1) {
-    cloud_cover <- cloud_cover / 100
-  }
-
   # Calculate solar position
   if (verbose) cli_alert("Calculating solar position...")
   solar_pos <- calculate_solar_position(datetime, latitude, longitude)
-
-  # Total solar radiation
-  solar_radiation <- direct_solar + diffuse_solar
 
   # Calculate globe temperature
   if (verbose) cli_alert("Calculating globe temperature...")
@@ -157,8 +170,12 @@ generate_twl <- function(datetime,
     solar_pos$zenith, albedo, verbose = verbose
   )
 
-  # Mean radiant temperature (approximation from globe temp)
-  trad <- globe_temp + 1.5
+  # Mean radiant temperature from globe temperature — ISO 7726 formula.
+  # For a 150 mm black globe (emissivity 0.95):
+  #   trad = ((Tg+273.15)^4 + 1.1e8 * V^0.6 / (emiss * D^0.4) * (Tg - ta))^0.25 - 273.15
+  # where D = 0.15 m, emiss = 0.95, V = wind speed (m/s), ta = air temp (°C).
+  trad <- ((globe_temp + 273.15)^4 +
+    (1.1e8 / (0.95 * 0.15^0.4)) * wind_speed^0.6 * (globe_temp - temp))^0.25 - 273.15
 
   # Psychrometric calculations
   if (verbose) cli_alert("Calculating psychrometric variables...")
@@ -166,15 +183,16 @@ generate_twl <- function(datetime,
   pa <- (RH / 100) * es
   temp_dewpoint <- calc_dew_point(temp, RH)
 
-  # Convective heat transfer coefficient
-  hc <- 8.3 * sqrt(wind_speed)
-
   # Natural wet bulb temperature
-  if (verbose) cli_alert("Calculating natural wet bulb temperature...")
-  wet_bulb <- calculate_natural_wet_bulb(
-    temp, RH, pressure, wind_speed, globe_temp,
-    verbose = verbose, show_progress = FALSE
-  )
+  if (is.null(wet_bulb)) {
+    if (verbose) cli_alert("Calculating natural wet bulb temperature...")
+    wet_bulb <- calculate_natural_wet_bulb(
+      temp, RH, pressure, wind_speed, globe_temp,
+      verbose = verbose, show_progress = FALSE
+    )
+  } else {
+    if (verbose) cli_alert("Using supplied wet bulb temperature.")
+  }
 
   # Solve for TWL
   if (verbose) cli_alert("Computing TWL...")
@@ -187,12 +205,12 @@ generate_twl <- function(datetime,
   TWL <- pmap_dbl(
     list(
       temp, wind_speed, RH, direct_solar, diffuse_solar,
-      pressure, solar_radiation, pa, temp_dewpoint,
-      wet_bulb, globe_temp, trad, hc, seq_len(n_obs)
+      pressure, pa, temp_dewpoint,
+      wet_bulb, globe_temp, trad, seq_len(n_obs)
     ),
     function(temp, wind_speed, RH, direct_solar, diffuse_solar,
-             pressure, solar_radiation, pa, temp_dewpoint,
-             wet_bulb, globe_temp, trad, hc, idx) {
+             pressure, pa, temp_dewpoint,
+             wet_bulb, globe_temp, trad, idx) {
 
       if (verbose && n_obs > 100 && idx %% 10 == 0) {
         cli_progress_update(id = pb_id)
@@ -207,10 +225,10 @@ generate_twl <- function(datetime,
       # Solve for this point
       result <- solve_twl_single(
         temp, wind_speed, RH, direct_solar, diffuse_solar,
-        pressure, solar_radiation, pa, temp_dewpoint,
-        wet_bulb, globe_temp, trad, hc,
+        pressure, pa, temp_dewpoint,
+        wet_bulb, globe_temp, trad,
         max_core_temp, max_sweat_rate,
-        Icl, icl, LR, lambda, fr,
+        Icl, icl, LR, lambda,
         index = if (verbose) idx else NULL
       )
 

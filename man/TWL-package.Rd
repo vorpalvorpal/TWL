@@ -9,7 +9,7 @@
 Calculates the Thermal Work Limit (TWL), the maximum sustainable metabolic rate (W/m²) for workers in thermally stressful environments. Based on the methodology of Brake & Bates (2002) \doi{10.1080/104732202317070947}.
 }
 \author{
-\strong{Maintainer}: RJS \email{author@example.com}
+\strong{Maintainer}: R. J. Sherwood \email{rjs@example.com}
 
 }
 \keyword{internal}
